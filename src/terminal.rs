@@ -222,9 +222,7 @@ impl Terminal {
             if input.was_just_pressed(VirtualKeyCode::F3) {
                 self.set_debug(!self.debug.get());
             }
-            let running = display.refresh() && self.running.get();
-            renderer::clear();
-            running
+            display.refresh() && self.running.get()
         } else {
             self.running.get()
         }
@@ -238,9 +236,7 @@ impl Terminal {
         drop(frame_counter);
 
         if let Some(ref display) = self.display {
-            let running = display.refresh() && self.running.get();
-            renderer::clear();
-            running
+            display.refresh() && self.running.get()
         } else {
             self.running.get()
         }
@@ -265,6 +261,7 @@ impl Terminal {
             {
                 display.set_aspect_ratio(text_buffer.aspect_ratio);
             }
+            renderer::clear();
             let duration = SystemTime::now().duration_since(self.since_start).unwrap();
 
             let time = duration.as_secs() as f32 + duration.subsec_nanos() as f32 / 1_000_000_000.0;
@@ -276,6 +273,38 @@ impl Terminal {
                 background_mesh,
             );
             renderer::draw(self.get_program(), display.proj_matrix.get(), time, mesh);
+        }
+    }
+
+    /// Draws the `TextBuffer`s, this should be called every time in
+    /// the while-loop. (Use this instead of `draw` if you need to
+    /// draw multiple `TextBuffer`s.)
+    pub fn draw_multiple(&self, text_buffers: Vec<&TextBuffer>) {
+        renderer::clear();
+        for text_buffer in text_buffers {
+            if let (&Some(ref display), &Some(ref mesh), &Some(ref background_mesh)) = (
+                &self.display,
+                &text_buffer.mesh,
+                &text_buffer.background_mesh,
+            ) {
+                if self.text_buffer_aspect_ratio
+                    && text_buffer.aspect_ratio != display.get_aspect_ratio()
+                {
+                    display.set_aspect_ratio(text_buffer.aspect_ratio);
+                }
+                let duration = SystemTime::now().duration_since(self.since_start).unwrap();
+
+                let time =
+                    duration.as_secs() as f32 + duration.subsec_nanos() as f32 / 1_000_000_000.0;
+
+                renderer::draw(
+                    self.get_background_program(),
+                    display.proj_matrix.get(),
+                    time,
+                    background_mesh,
+                );
+                renderer::draw(self.get_program(), display.proj_matrix.get(), time, mesh);
+            }
         }
     }
 
